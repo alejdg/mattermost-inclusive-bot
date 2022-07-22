@@ -1,0 +1,17 @@
+{
+	"app_id": "inclusive-bot",
+	"version": "0.1.0",
+	"display_name": "Inclusive bot",
+	"icon": "icon.png",
+	"homepage_url": "https://github.com/alejdg/mattermost-inclusive-bot",
+	"requested_permissions": [
+		"act_as_bot"
+	],
+	"requested_locations": [
+		"/channel_header",
+		"/command"
+	],
+	"http": {
+		"root_url": "http://dune.local:4000"
+	}
+}
