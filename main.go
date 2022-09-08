@@ -34,6 +34,7 @@ const (
 	CHANNEL_NAME       = "general"
 	TEAM_NAME          = "test"
 	DEBUG_CHANNEL_NAME = "debug-" + BOT_NAME
+	APP_TOKEN          = "APPTESTTOKEN"
 )
 
 var client *model.Client4
@@ -44,6 +45,7 @@ var botTeam *model.Team
 var debuggingChannel *model.Channel
 
 func main() {
+	http.HandleFunc("/", logRequest)
 	// Serve its own manifest as HTTP for convenience in dev. mode.
 	http.HandleFunc("/manifest.json", httputils.DoHandleJSONData(manifestData))
 
@@ -58,6 +60,9 @@ func main() {
 
 	// Forces the send form to be displayed as a modal.
 	http.HandleFunc("/send-modal/submit", httputils.DoHandleJSONData(formData))
+
+	// Replaces a term
+	http.HandleFunc("/replace/", replaceHandler)
 
 	// Serves the icon for the app.
 	http.HandleFunc("/static/icon.png",
@@ -96,6 +101,39 @@ func send(w http.ResponseWriter, req *http.Request) {
 		apps.NewDataResponse("Created a post in your DM channel."))
 }
 
+func logRequest(w http.ResponseWriter, req *http.Request) {
+	println("ALEJDG logger:")
+	request := model.PostActionIntegrationRequestFromJson(req.Body)
+	fmt.Printf("Request: {\n%s\n}", request)
+	println(req.Method)
+	println(req.URL.Path)
+}
+
+type ReplyData struct {
+	AppToken  string `json:"app_token"`
+	ReplyToId string `json:"replyToId"`
+	Term      string `json:"term"`
+	Word      string `json:"word"`
+}
+
+func replaceHandler(w http.ResponseWriter, req *http.Request) {
+	println("#replaceHandler")
+	request := model.PostActionIntegrationRequestFromJson(req.Body)
+	fmt.Printf("PostActionIntegrationRequestFromJson: \n%s\n", request.ToJson())
+	fmt.Printf("request.Context: \n%s\n", request.Context)
+	// TODO validateToken()
+	var result ReplyData
+	json.Unmarshal([]byte(request.Context["body"].(string)), &result)
+	fmt.Printf("result: \n%s\n", result)
+	post, resp := client.GetPost(result.ReplyToId, "")
+	if resp.StatusCode == 404 {
+		println("Couldn't replace the term. Message not found")
+		return
+	}
+	fmt.Printf("post message: \n%s\n", post.Message)
+	ReplaceTerm(result.Term, result.Word, post)
+}
+
 func WebSocketHandling() {
 	// Lets start listening to some channels via the websocket!
 	webSocketClient, err := model.NewWebSocketClient4("ws://localhost:8066", BOT_TOKEN)
@@ -103,7 +141,6 @@ func WebSocketHandling() {
 		println("We failed to connect to the web socket")
 		PrintError(err)
 	}
-	println("websocket sequence", webSocketClient.Sequence)
 
 	println("API URL:")
 	println(webSocketClient.ApiUrl)
@@ -113,8 +150,9 @@ func WebSocketHandling() {
 
 	go func() {
 		for resp := range webSocketClient.EventChannel {
+			fmt.Printf("%+v\n", resp)
 			HandleWebSocketResponse(resp)
-			webSocketClient.SendMessage("user_typing", make(map[string]interface{}))
+			// webSocketClient.SendMessage("user_typing", make(map[string]interface{}))
 		}
 	}()
 
@@ -159,7 +197,8 @@ func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 		if matched, _ := regexp.MatchString(term, post.Message); matched {
 			println("\t UserId: " + post.UserId)
 			println("\t post.Id: " + post.Id)
-			SendEphemeralMsgToUser("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId)
+			SendMsg("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId, term)
+			// SendEphemeralMsgToUser("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId)
 			// ReplaceTerm(term, replacement, post)
 			return
 		}
@@ -189,7 +228,6 @@ func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 		}
 	}
 
-	SendMsgToDebuggingChannel("I did not understand you!", post.Id)
 }
 
 func PrintError(err *model.AppError) {
@@ -199,12 +237,98 @@ func PrintError(err *model.AppError) {
 	println("\t\t" + err.DetailedError)
 }
 
+func SendMsg(msg string, replyToId string, userId string, term string) {
+	attachments := []model.SlackAttachment{}
+	actions := []*model.PostAction{}
+	words := []string{"secondary", "agent"}
+	for _, word := range words {
+		action := model.PostAction{
+			Id:   word,
+			Name: word,
+			Type: model.POST_ACTION_TYPE_BUTTON,
+			Integration: &model.PostActionIntegration{
+				// URL: "http://dune.local:4000/",	fmt.Sprintf("/plugins/%s/delete", manifest.ID)
+				// URL: fmt.Sprintf("http://dune.local:4000/replace/%s/%s/%s", replyToId, term, word),
+				// URL: "http://dune.local:4000/replace/",
+				URL: "http://172.18.0.1:4000/replace/",
+				Context: map[string]interface{}{
+					"action": "replace",
+					"body":   fmt.Sprintf(`{"app_token": "%s", "replyToId": "%s", "term": "%s", "word": "%s"}`, APP_TOKEN, replyToId, term, word),
+				},
+			},
+		}
+		actions = append(actions, &action)
+	}
+	attachment := model.SlackAttachment{}
+	attachment.Actions = actions
+	attachments = append(attachments, attachment)
+	post := &model.Post{}
+
+	post.ChannelId = debuggingChannel.Id
+	post.RootId = replyToId
+	post.Message = msg
+	post.UserId = userId
+
+	post.AddProp("attachments", attachments)
+
+	if resp := SendEphemeralMsg(post); resp.Error != nil {
+		println("Trying another type of message")
+		_ = SendChannelMsg(post)
+	}
+
+}
+
+func SendEphemeralMsg(post *model.Post) *model.Response {
+	postEphemeral := &model.PostEphemeral{}
+	postEphemeral.Post = post
+	fmt.Printf("%+v\n", postEphemeral.UserID)
+	_, resp := client.CreatePostEphemeral(postEphemeral)
+	if resp.Error != nil {
+		println("Failed to send an ephemeral messsage.")
+		PrintError(resp.Error)
+	}
+	return resp
+
+}
+
+func SendChannelMsg(post *model.Post) *model.Response {
+	_, resp := client.CreatePost(post)
+	if resp.Error != nil {
+		println("We failed to send a message to the logging channel")
+		PrintError(resp.Error)
+	}
+	return resp
+
+}
+
 func SendMsgToDebuggingChannel(msg string, replyToId string) {
 	post := &model.Post{}
 	post.ChannelId = debuggingChannel.Id
 	post.Message = msg
 
 	post.RootId = replyToId
+
+	attachments := []model.SlackAttachment{}
+	actions := []*model.PostAction{}
+	words := []string{"secondary", "agent"}
+	for _, word := range words {
+		action := model.PostAction{
+			Id:   word,
+			Name: word,
+			Integration: &model.PostActionIntegration{
+				URL: "http://dune.local:4000/",
+				Context: map[string]interface{}{
+					"action": "replace_" + word,
+				},
+			},
+		}
+		actions = append(actions, &action)
+	}
+	attachment := model.SlackAttachment{}
+	attachment.Actions = actions
+	attachments = append(attachments, attachment)
+
+	post.AddProp("attachments", attachments)
 
 	if _, resp := client.CreatePost(post); resp.Error != nil {
 		println("We failed to send a message to the logging channel")
@@ -233,13 +357,7 @@ func SendEphemeralMsgToUser(msg string, replyToId string, userId string) {
 	attachment.Actions = actions
 	attachments = append(attachments, attachment)
 	post := &model.Post{}
-	// post := &model.Post{
-	// 	Props: map[string]interface{}{
-	// 		"attachments": []model.SlackAttachment{
-	// 			attachment,
-	// 		},
-	// 	},
-	// }
+
 	postEphemeral := &model.PostEphemeral{}
 	post.ChannelId = debuggingChannel.Id
 	post.Message = msg
@@ -255,7 +373,6 @@ func SendEphemeralMsgToUser(msg string, replyToId string, userId string) {
 	println(postEphemeral.Post)
 	fmt.Printf("%+v\n", postEphemeral.Post)
 	println("ALEJDG TEST:")
-	webSocketClient.SendMessage("get_status", nil)
 	if _, resp := client.CreatePostEphemeral(postEphemeral); resp.Error != nil {
 		println("We failed to send a message to the logging channel")
 		PrintError(resp.Error)
@@ -266,11 +383,12 @@ func ReplaceTerm(term string, replacement string, post *model.Post) {
 	re := regexp.MustCompile(term)
 	post.Message = re.ReplaceAllString(post.Message, replacement)
 
-	// post.RootId = replyToId
-
 	if _, resp := client.UpdatePost(post.Id, post); resp.Error != nil {
 		println("We failed to update the message")
 		PrintError(resp.Error)
+		if resp.Error.Id == "api.context.permissions.app_error" {
+			println("Make sure the bot is an admin or is in a team with `edit_others_posts` permission (Enterprise only).")
+		}
 	}
 }
 
