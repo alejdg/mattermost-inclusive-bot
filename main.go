@@ -30,9 +30,9 @@ var formData []byte
 
 const (
 	BOT_NAME           = "inclusive-bot"
-	BOT_TOKEN          = "9gw8jfjcm3y8ugb19sr4xcaube"
+	BOT_TOKEN          = "pmniaxb367nkzbnsocoozop45w"
 	CHANNEL_NAME       = "general"
-	TEAM_NAME          = "test"
+	TEAM_NAME          = "test-team"
 	DEBUG_CHANNEL_NAME = "debug-" + BOT_NAME
 	APP_TOKEN          = "APPTESTTOKEN"
 )
@@ -45,7 +45,7 @@ var botTeam *model.Team
 var debuggingChannel *model.Channel
 
 func main() {
-	http.HandleFunc("/", logRequest)
+	// http.HandleFunc("/", logRequest)
 	// Serve its own manifest as HTTP for convenience in dev. mode.
 	http.HandleFunc("/manifest.json", httputils.DoHandleJSONData(manifestData))
 
@@ -169,9 +169,9 @@ func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 	fmt.Printf("%+v\n", debuggingChannel.Id)
 
 	// If this isn't the debugging channel then lets ingore it
-	if event.Broadcast.ChannelId != debuggingChannel.Id {
-		return
-	}
+	// if event.Broadcast.ChannelId != debuggingChannel.Id {
+	// 	return
+	// }
 
 	fmt.Printf("%+v\n", event)
 
@@ -197,7 +197,9 @@ func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 		if matched, _ := regexp.MatchString(term, post.Message); matched {
 			println("\t UserId: " + post.UserId)
 			println("\t post.Id: " + post.Id)
-			SendMsg("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId, term)
+			msg := fmt.Sprintf("You're using outdate terms my friend! Term: %s - Suggestions: %s", term, replacement)
+			SendPrivateMessage(msg, post.UserId)
+			// SendSpecificMsg("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId, term)
 			// SendEphemeralMsgToUser("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId)
 			// ReplaceTerm(term, replacement, post)
 			return
@@ -237,7 +239,7 @@ func PrintError(err *model.AppError) {
 	println("\t\t" + err.DetailedError)
 }
 
-func SendMsg(msg string, replyToId string, userId string, term string) {
+func SendSpecificMsg(msg string, replyToId string, userId string, term string) {
 	attachments := []model.SlackAttachment{}
 	actions := []*model.PostAction{}
 	words := []string{"secondary", "agent"}
@@ -273,7 +275,7 @@ func SendMsg(msg string, replyToId string, userId string, term string) {
 
 	if resp := SendEphemeralMsg(post); resp.Error != nil {
 		println("Trying another type of message")
-		_ = SendChannelMsg(post)
+		_ = SendMsg(post)
 	}
 
 }
@@ -291,7 +293,7 @@ func SendEphemeralMsg(post *model.Post) *model.Response {
 
 }
 
-func SendChannelMsg(post *model.Post) *model.Response {
+func SendMsg(post *model.Post) *model.Response {
 	_, resp := client.CreatePost(post)
 	if resp.Error != nil {
 		println("We failed to send a message to the logging channel")
@@ -334,6 +336,27 @@ func SendMsgToDebuggingChannel(msg string, replyToId string) {
 		println("We failed to send a message to the logging channel")
 		PrintError(resp.Error)
 	}
+}
+
+func SendSuggestion(msg string, replyToId string, userId string, term string) {
+
+}
+
+func SendPrivateMessage(msg string, userId string) {
+	post := &model.Post{}
+	post.Message = msg
+	post.UserId = userId
+	channel := CreateDmChannel(userId)
+	post.ChannelId = channel.Id
+	SendMsg(post)
+}
+
+func CreateDmChannel(userId string) (channel *model.Channel) {
+	channel, resp := client.CreateDirectChannel(botUser.Id, userId)
+	if resp.Error != nil {
+		return
+	}
+	return channel
 }
 
 func SendEphemeralMsgToUser(msg string, replyToId string, userId string) {
