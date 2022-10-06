@@ -29,6 +29,7 @@ var bindingsData []byte
 var formData []byte
 
 const (
+	SITE_URL           = "http://localhost:8066"
 	BOT_NAME           = "inclusive-bot"
 	BOT_TOKEN          = "pmniaxb367nkzbnsocoozop45w"
 	CHANNEL_NAME       = "general"
@@ -79,7 +80,7 @@ func main() {
 }
 
 func setupBot() {
-	client = model.NewAPIv4Client("http://localhost:8066")
+	client = model.NewAPIv4Client(SITE_URL)
 	client.SetToken(BOT_TOKEN)
 	GetTeam()
 	GetBotUser()
@@ -197,7 +198,8 @@ func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 		if matched, _ := regexp.MatchString(term, post.Message); matched {
 			println("\t UserId: " + post.UserId)
 			println("\t post.Id: " + post.Id)
-			msg := fmt.Sprintf("You're using outdate terms my friend! Term: %s - Suggestions: %s", term, replacement)
+			post_link := fmt.Sprintf("%s/%s/pl/%s", SITE_URL, TEAM_NAME, post.Id)
+			msg := fmt.Sprintf("You're using outdate terms, my friend! \n**Term**: %s \n**Suggestions**: %s\n**Post**: %s", term, replacement, post_link)
 			SendPrivateMessage(msg, post.UserId)
 			// SendSpecificMsg("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId, term)
 			// SendEphemeralMsgToUser("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId)
