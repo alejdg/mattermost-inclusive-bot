@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -36,6 +37,7 @@ const (
 	TEAM_NAME          = "test-team"
 	DEBUG_CHANNEL_NAME = "debug-" + BOT_NAME
 	APP_TOKEN          = "APPTESTTOKEN"
+	WORD_LIST_FILE     = "word_list.json"
 )
 
 var client *model.Client4
@@ -420,12 +422,7 @@ func ReplaceTerm(term string, replacement string, post *model.Post) {
 func GetTeam() {
 	if team, resp := client.GetTeamByName(TEAM_NAME, ""); resp.Error != nil {
 		println("We failed to get the initial load")
-		println("or we do not appear to be a member of the team '" + TEAM_NAME + "'")
-		PrintError(resp.Error)
-		os.Exit(1)
-	} else {
-		botTeam = team
-	}
+		println("or we do not appear to be a member of the team '" + TE./config.json
 }
 
 func GetDebugChannel() {
@@ -463,6 +460,19 @@ func CreateBotDebuggingChannel() {
 		debuggingChannel = rchannel
 		println("Looks like this might be the first run so we've created the channel " + DEBUG_CHANNEL_NAME)
 	}
+}
+
+func GetWordList() (words map[string]interface{}) {
+	content, err := ioutil.ReadFile(WORD_LIST_FILE)
+	if err != nil {
+        log.Fatal("Error when opening file: ", err)
+    }
+
+    err = json.Unmarshal(content, &words)
+    if err != nil {
+        log.Fatal("Error during Unmarshal(): ", err)
+    }
+	return
 }
 
 // func SetupGracefulShutdown() {
