@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -32,7 +33,7 @@ var formData []byte
 const (
 	SITE_URL           = "http://localhost:8066"
 	BOT_NAME           = "inclusive-bot"
-	BOT_TOKEN          = "pmniaxb367nkzbnsocoozop45w"
+	BOT_TOKEN          = "7iatc3twai8qtxwkcszrda4nsy"
 	CHANNEL_NAME       = "general"
 	TEAM_NAME          = "test-team"
 	DEBUG_CHANNEL_NAME = "debug-" + BOT_NAME
@@ -46,6 +47,7 @@ var webSocketClient *model.WebSocketClient
 var botUser *model.User
 var botTeam *model.Team
 var debuggingChannel *model.Channel
+var wordList map[string]interface{}
 
 func main() {
 	// http.HandleFunc("/", logRequest)
@@ -87,6 +89,7 @@ func setupBot() {
 	GetTeam()
 	GetBotUser()
 	GetDebugChannel()
+	wordList = GetWordList()
 }
 
 func send(w http.ResponseWriter, req *http.Request) {
@@ -167,6 +170,19 @@ func HandleWebSocketResponse(event *model.WebSocketEvent) {
 	HandleMsgFromDebuggingChannel(event)
 }
 
+func checkMsg(msg string) (term string, suggestions interface{}, err error) {
+	for word, replacements := range wordList {
+		fmt.Printf("%+v\n", word)
+		if matched, _ := regexp.MatchString(word, msg); matched {
+			suggestions = replacements
+			term = word
+			return
+		}
+	}
+	err = errors.New("no terms found")
+	return
+}
+
 func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 	fmt.Printf("%+v\n", event)
 	fmt.Printf("%+v\n", debuggingChannel.Id)
@@ -183,7 +199,8 @@ func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 		return
 	}
 
-	println("responding to debugging channel msg")
+	// println("responding to debugging channel msg")
+	println("Handling a message")
 
 	post := model.PostFromJson(strings.NewReader(event.Data["post"].(string)))
 	if post != nil {
@@ -193,15 +210,30 @@ func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 			return
 		}
 
+		term, replacements, err := checkMsg(post.Message)
+		if err != nil {
+			println("\t Message okay")
+		} else {
+			println("\t UserId: " + post.UserId)
+			println("\t post.Id: " + post.Id)
+			post_link := fmt.Sprintf("%s/%s/pl/%s", SITE_URL, TEAM_NAME, post.Id)
+			msg := fmt.Sprintf("You're using outdated terms. Consider using one of the suggestions below. \n**Term**: %s \n**Suggestions**: %v\n**Post**: %s", term, replacements, post_link)
+			SendPrivateMessage(msg, post.UserId)
+			// SendSpecificMsg("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId, term)
+			// SendEphemeralMsgToUser("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId)
+			// ReplaceTerm(term, replacement, post)
+			return
+		}
+
 		//alejdg
-		term := "slave"
+		term = "slave"
 		replacement := "secondary"
 		_ = replacement
 		if matched, _ := regexp.MatchString(term, post.Message); matched {
 			println("\t UserId: " + post.UserId)
 			println("\t post.Id: " + post.Id)
 			post_link := fmt.Sprintf("%s/%s/pl/%s", SITE_URL, TEAM_NAME, post.Id)
-			msg := fmt.Sprintf("You're using outdate terms, my friend! \n**Term**: %s \n**Suggestions**: %s\n**Post**: %s", term, replacement, post_link)
+			msg := fmt.Sprintf("You're using outdated terms. Consider using one of the suggestions below. \n**Term**: %s \n**Suggestions**: %s\n**Post**: %s", term, replacement, post_link)
 			SendPrivateMessage(msg, post.UserId)
 			// SendSpecificMsg("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId, term)
 			// SendEphemeralMsgToUser("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId)
@@ -422,7 +454,12 @@ func ReplaceTerm(term string, replacement string, post *model.Post) {
 func GetTeam() {
 	if team, resp := client.GetTeamByName(TEAM_NAME, ""); resp.Error != nil {
 		println("We failed to get the initial load")
-		println("or we do not appear to be a member of the team '" + TE./config.json
+		println("or we do not appear to be a member of the team '" + TEAM_NAME + "'")
+		PrintError(resp.Error)
+		os.Exit(1)
+	} else {
+		botTeam = team
+	}
 }
 
 func GetDebugChannel() {
@@ -465,13 +502,13 @@ func CreateBotDebuggingChannel() {
 func GetWordList() (words map[string]interface{}) {
 	content, err := ioutil.ReadFile(WORD_LIST_FILE)
 	if err != nil {
-        log.Fatal("Error when opening file: ", err)
-    }
+		log.Fatal("Error when opening file: ", err)
+	}
 
-    err = json.Unmarshal(content, &words)
-    if err != nil {
-        log.Fatal("Error during Unmarshal(): ", err)
-    }
+	err = json.Unmarshal(content, &words)
+	if err != nil {
+		log.Fatal("Error during Unmarshal(): ", err)
+	}
 	return
 }
 

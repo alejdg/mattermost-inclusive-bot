@@ -1,6 +1,11 @@
 module mattermost-inclusive-bot
 
-go 1.18
+go 1.19
+
+require (
+	github.com/mattermost/mattermost-plugin-apps v1.1.0
+	github.com/mattermost/mattermost-server/v5 v5.39.3
+)
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
@@ -50,8 +55,6 @@ require (
 	github.com/mattermost/logr v1.0.13 // indirect
 	github.com/mattermost/logr/v2 v2.0.15 // indirect
 	github.com/mattermost/mattermost-plugin-api v0.0.22-0.20211210183909-beb4761e4bd3 // indirect
-	github.com/mattermost/mattermost-plugin-apps v1.1.0 // indirect
-	github.com/mattermost/mattermost-server/v5 v5.39.3 // indirect
 	github.com/mattermost/mattermost-server/v6 v6.6.0 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
