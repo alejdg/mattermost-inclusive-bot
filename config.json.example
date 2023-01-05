@@ -1,0 +1,9 @@
+{
+    "site_url": "http://localhost",
+    "bot_name": "inclusive-bot",
+    "bot_token": "BOTTOKEN",
+    "channel_name": "general",
+    "team_name": "my-team",
+    "app_token": "APPTESTTOKEN",
+    "word_list_file": "word_list.json"
+}
