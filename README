@@ -12,8 +12,17 @@ Copy the `config.json.example` file to `config.json` and change the variables `s
 
 As a System Admin account:
 
-1. Go to <https://<your-mattemost-url>/<your-mattermosteam>/integrations/bots>.
+1. Go to <https://<your-mattemost-url>/<your-mattermostteam>/integrations/bots>.
 1. Click `Add Bot Account`.
 1. Set the bot name with the same value configured in `config.json`.
 1. Enable the `post:all` option.
 1. Save and update the `bot_token` variable in `config.json` with the the provided token.
+1. Go to <https://<your-mattemost-url>/<your-mattermostteam>/messages>
+1. Click `Invite members` and invite your bot.
+1. The bot will be invited to your default channels but you can invite it to others too.
+
+## Start the bot
+
+`go run .`
+
+If it's the first run the bot will create a debug channel.
