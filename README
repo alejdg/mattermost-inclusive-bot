@@ -1,3 +1,19 @@
-# Mattermost inclusve bot
+# Mattermost inclusive bot
 
 Prototype bot to help people discontinue harmful terms in their communication.
+
+# Set up
+
+## Create the config file
+
+Copy the `config.json.example` file to `config.json` and change the variables `site_url`, `bot_name`, `team_name` and `word_list.json` according to your needs.
+
+## Create the bot account
+
+As a System Admin account:
+
+1. Go to <https://<your-mattemost-url>/<your-mattermosteam>/integrations/bots>.
+1. Click `Add Bot Account`.
+1. Set the bot name with the same value configured in `config.json`.
+1. Enable the `post:all` option.
+1. Save and update the `bot_token` variable in `config.json` with the the provided token.
