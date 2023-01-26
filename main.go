@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"regexp"
 	"strings"
 
@@ -33,7 +33,6 @@ var formData []byte
 
 const (
 	BOT_NAME       = "inclusive-bot"
-	CHANNEL_NAME   = "general"
 	WORD_LIST_FILE = "word_list.json"
 )
 
@@ -46,7 +45,7 @@ var debuggingChannel *model.Channel
 var wordList map[string]interface{}
 
 func main() {
-	// http.HandleFunc("/", logRequest)
+	SetupGracefulShutdown()
 	// Serve its own manifest as HTTP for convenience in dev. mode.
 	http.HandleFunc("/manifest.json", httputils.DoHandleJSONData(manifestData))
 
@@ -63,18 +62,20 @@ func main() {
 	http.HandleFunc("/send-modal/submit", httputils.DoHandleJSONData(formData))
 
 	// Replaces a term
-	http.HandleFunc("/replace/", replaceHandler)
+	// http.HandleFunc("/replace/", replaceHandler)
 
 	// Serves the icon for the app.
-	http.HandleFunc("/static/icon.png",
+	http.HandleFunc("/static/icon. png",
 		httputils.DoHandleData("image/png", iconData))
 
 	setupBot()
 
 	WebSocketHandling()
 	addr := ":4000" // matches manifest.json
-	fmt.Println("Listening on", addr)
-	fmt.Println("/apps install http http://dune.local" + addr + "/manifest.json") // matches manifest.json
+	fmt.Println("The bot is running")
+	// The bot is not requiring installation atm.
+	// fmt.Println("Listening on", addr)
+	// fmt.Println("/apps install http http://dune.local" + addr + "/manifest.json") // matches manifest.json
 	log.Fatal(http.ListenAndServe(addr, nil))
 
 }
@@ -104,14 +105,6 @@ func send(w http.ResponseWriter, req *http.Request) {
 		apps.NewDataResponse("Created a post in your DM channel."))
 }
 
-func logRequest(w http.ResponseWriter, req *http.Request) {
-	println("ALEJDG logger:")
-	request := model.PostActionIntegrationRequestFromJson(req.Body)
-	fmt.Printf("Request: {\n%s\n}", request)
-	println(req.Method)
-	println(req.URL.Path)
-}
-
 type ReplyData struct {
 	AppToken  string `json:"app_token"`
 	ReplyToId string `json:"replyToId"`
@@ -119,8 +112,8 @@ type ReplyData struct {
 	Word      string `json:"word"`
 }
 
+// Requires admin rights. Not in use atm.
 func replaceHandler(w http.ResponseWriter, req *http.Request) {
-	println("#replaceHandler")
 	request := model.PostActionIntegrationRequestFromJson(req.Body)
 	fmt.Printf("PostActionIntegrationRequestFromJson: \n%s\n", request.ToJson())
 	fmt.Printf("request.Context: \n%s\n", request.Context)
@@ -145,31 +138,25 @@ func WebSocketHandling() {
 		PrintError(err)
 	}
 
-	println("API URL:")
-	println(webSocketClient.ApiUrl)
-	println("AUTH Token:")
-	println(webSocketClient.AuthToken)
 	webSocketClient.Listen()
 
 	go func() {
 		for resp := range webSocketClient.EventChannel {
-			fmt.Printf("%+v\n", resp)
 			HandleWebSocketResponse(resp)
-			// webSocketClient.SendMessage("user_typing", make(map[string]interface{}))
 		}
 	}()
 
+	SendMsgToDebuggingChannel("I'm online.", "")
 	// // You can block forever with
 	// select {}
 }
 
 func HandleWebSocketResponse(event *model.WebSocketEvent) {
-	HandleMsgFromDebuggingChannel(event)
+	HandleMsg(event)
 }
 
 func checkMsg(msg string) (term string, suggestions interface{}, err error) {
 	for word, replacements := range wordList {
-		fmt.Printf("%+v\n", word)
 		if matched, _ := regexp.MatchString(word, msg); matched {
 			suggestions = replacements
 			term = word
@@ -180,24 +167,12 @@ func checkMsg(msg string) (term string, suggestions interface{}, err error) {
 	return
 }
 
-func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
-	fmt.Printf("%+v\n", event)
-	fmt.Printf("%+v\n", debuggingChannel.Id)
-
-	// If this isn't the debugging channel then lets ingore it
-	// if event.Broadcast.ChannelId != debuggingChannel.Id {
-	// 	return
-	// }
-
-	fmt.Printf("%+v\n", event)
+func HandleMsg(event *model.WebSocketEvent) {
 
 	// Lets only respond to messaged posted events
 	if event.Event != model.WEBSOCKET_EVENT_POSTED {
 		return
 	}
-
-	// println("responding to debugging channel msg")
-	println("Handling a message")
 
 	post := model.PostFromJson(strings.NewReader(event.Data["post"].(string)))
 	if post != nil {
@@ -207,62 +182,31 @@ func HandleMsgFromDebuggingChannel(event *model.WebSocketEvent) {
 			return
 		}
 
+		// Handle bot dms as debugging messages
+		dm_channel := CreateDmChannel(post.UserId)
+		if event.Broadcast.ChannelId == dm_channel.Id {
+			HandleDirectMsg(event, post)
+		}
 		term, replacements, err := checkMsg(post.Message)
 		if err != nil {
-			println("\t Message okay")
+			// println("\t Message okay")
 		} else {
-			println("\t UserId: " + post.UserId)
-			println("\t post.Id: " + post.Id)
+			// println("\t UserId: " + post.UserId)
+			// println("\t post.Id: " + post.Id)
 			post_link := fmt.Sprintf("%s/%s/pl/%s", viper.GetString("site_url"), viper.Get("team_name"), post.Id)
 			msg := fmt.Sprintf("You're using outdated terms. Consider using one of the suggestions below. \n**Term**: %s \n**Suggestions**: %v\n**Post**: %s", term, replacements, post_link)
 			SendPrivateMessage(msg, post.UserId)
-			// SendSpecificMsg("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId, term)
-			// SendEphemeralMsgToUser("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId)
-			// ReplaceTerm(term, replacement, post)
-			return
-		}
-
-		//alejdg
-		term = "slave"
-		replacement := "secondary"
-		_ = replacement
-		if matched, _ := regexp.MatchString(term, post.Message); matched {
-			println("\t UserId: " + post.UserId)
-			println("\t post.Id: " + post.Id)
-			post_link := fmt.Sprintf("%s/%s/pl/%s", viper.GetString("site_url"), viper.GetString("team_name"), post.Id)
-			msg := fmt.Sprintf("You're using outdated terms. Consider using one of the suggestions below. \n**Term**: %s \n**Suggestions**: %s\n**Post**: %s", term, replacement, post_link)
-			SendPrivateMessage(msg, post.UserId)
-			// SendSpecificMsg("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId, term)
-			// SendEphemeralMsgToUser("You're using outdate terms my friend! Here are some alternatives for it:", post.Id, post.UserId)
-			// ReplaceTerm(term, replacement, post)
-			return
-		}
-
-		// if you see any word matching 'alive' then respond
-		if matched, _ := regexp.MatchString(`(?:^|\W)alive(?:$|\W)`, post.Message); matched {
-			SendMsgToDebuggingChannel("Yes I'm running", post.Id)
-			return
-		}
-
-		// if you see any word matching 'up' then respond
-		if matched, _ := regexp.MatchString(`(?:^|\W)up(?:$|\W)`, post.Message); matched {
-			SendMsgToDebuggingChannel("Yes I'm running", post.Id)
-			return
-		}
-
-		// if you see any word matching 'running' then respond
-		if matched, _ := regexp.MatchString(`(?:^|\W)running(?:$|\W)`, post.Message); matched {
-			SendMsgToDebuggingChannel("Yes I'm running", post.Id)
-			return
-		}
-
-		// if you see any word matching 'hello' then respond
-		if matched, _ := regexp.MatchString(`(?:^|\W)hello(?:$|\W)`, post.Message); matched {
-			SendMsgToDebuggingChannel("Yes I'm running", post.Id)
 			return
 		}
 	}
+}
 
+func HandleDirectMsg(event *model.WebSocketEvent, post *model.Post) {
+	// if you see any word matching 'alive', 'up', 'running', 'hello' then respond
+	if matched, _ := regexp.MatchString(`(?:^|\W)(alive|up|running|hello)(?:$|\W)`, post.Message); matched {
+		SendPrivateMessage("Yes, I'm running", post.UserId)
+		return
+	}
 }
 
 func PrintError(err *model.AppError) {
@@ -272,59 +216,19 @@ func PrintError(err *model.AppError) {
 	println("\t\t" + err.DetailedError)
 }
 
-func SendSpecificMsg(msg string, replyToId string, userId string, term string) {
-	attachments := []model.SlackAttachment{}
-	actions := []*model.PostAction{}
-	words := []string{"secondary", "agent"}
-	for _, word := range words {
-		action := model.PostAction{
-			Id:   word,
-			Name: word,
-			Type: model.POST_ACTION_TYPE_BUTTON,
-			Integration: &model.PostActionIntegration{
-				// URL: "http://dune.local:4000/",	fmt.Sprintf("/plugins/%s/delete", manifest.ID)
-				// URL: fmt.Sprintf("http://dune.local:4000/replace/%s/%s/%s", replyToId, term, word),
-				// URL: "http://dune.local:4000/replace/",
-				URL: "http://172.18.0.1:4000/replace/",
-				Context: map[string]interface{}{
-					"action": "replace",
-					"body":   fmt.Sprintf(`{"app_token": "%s", "replyToId": "%s", "term": "%s", "word": "%s"}`, viper.GetString("app_token"), replyToId, term, word),
-				},
-			},
-		}
-		actions = append(actions, &action)
-	}
-	attachment := model.SlackAttachment{}
-	attachment.Actions = actions
-	attachments = append(attachments, attachment)
-	post := &model.Post{}
+// Requires admin rights. Not in use atm.
+// func SendEphemeralMsg(post *model.Post) *model.Response {
+// 	postEphemeral := &model.PostEphemeral{}
+// 	postEphemeral.Post = post
+// 	fmt.Printf("%+v\n", postEphemeral.UserID)
+// 	_, resp := client.CreatePostEphemeral(postEphemeral)
+// 	if resp.Error != nil {
+// 		println("Failed to send an ephemeral messsage.")
+// 		PrintError(resp.Error)
+// 	}
+// 	return resp
 
-	post.ChannelId = debuggingChannel.Id
-	post.RootId = replyToId
-	post.Message = msg
-	post.UserId = userId
-
-	post.AddProp("attachments", attachments)
-
-	if resp := SendEphemeralMsg(post); resp.Error != nil {
-		println("Trying another type of message")
-		_ = SendMsg(post)
-	}
-
-}
-
-func SendEphemeralMsg(post *model.Post) *model.Response {
-	postEphemeral := &model.PostEphemeral{}
-	postEphemeral.Post = post
-	fmt.Printf("%+v\n", postEphemeral.UserID)
-	_, resp := client.CreatePostEphemeral(postEphemeral)
-	if resp.Error != nil {
-		println("Failed to send an ephemeral messsage.")
-		PrintError(resp.Error)
-	}
-	return resp
-
-}
+// }
 
 func SendMsg(post *model.Post) *model.Response {
 	_, resp := client.CreatePost(post)
@@ -342,28 +246,6 @@ func SendMsgToDebuggingChannel(msg string, replyToId string) {
 	post.Message = msg
 
 	post.RootId = replyToId
-
-	attachments := []model.SlackAttachment{}
-	actions := []*model.PostAction{}
-	words := []string{"secondary", "agent"}
-	for _, word := range words {
-		action := model.PostAction{
-			Id:   word,
-			Name: word,
-			Integration: &model.PostActionIntegration{
-				URL: "http://dune.local:4000/",
-				Context: map[string]interface{}{
-					"action": "replace_" + word,
-				},
-			},
-		}
-		actions = append(actions, &action)
-	}
-	attachment := model.SlackAttachment{}
-	attachment.Actions = actions
-	attachments = append(attachments, attachment)
-
-	post.AddProp("attachments", attachments)
 
 	if _, resp := client.CreatePost(post); resp.Error != nil {
 		println("We failed to send a message to the logging channel")
@@ -389,52 +271,10 @@ func CreateDmChannel(userId string) (channel *model.Channel) {
 	if resp.Error != nil {
 		return
 	}
-	return channel
+	return
 }
 
-func SendEphemeralMsgToUser(msg string, replyToId string, userId string) {
-	attachments := []model.SlackAttachment{}
-	actions := []*model.PostAction{}
-	words := []string{"secondary", "agent"}
-	for _, word := range words {
-		action := model.PostAction{
-			Id:   word,
-			Name: word,
-			Integration: &model.PostActionIntegration{
-				Context: map[string]interface{}{
-					"URL":    "ws://localhost:8065/",
-					"action": "do_something_ephemeral",
-				},
-			},
-		}
-		actions = append(actions, &action)
-	}
-	attachment := model.SlackAttachment{}
-	attachment.Actions = actions
-	attachments = append(attachments, attachment)
-	post := &model.Post{}
-
-	postEphemeral := &model.PostEphemeral{}
-	post.ChannelId = debuggingChannel.Id
-	post.Message = msg
-
-	_ = attachment
-	_ = actions
-
-	post.RootId = replyToId
-	postEphemeral.UserID = userId
-	postEphemeral.Post = post
-	postEphemeral.Post.AddProp("attachments", attachments)
-	println(postEphemeral.Post.Attachments())
-	println(postEphemeral.Post)
-	fmt.Printf("%+v\n", postEphemeral.Post)
-	println("ALEJDG TEST:")
-	if _, resp := client.CreatePostEphemeral(postEphemeral); resp.Error != nil {
-		println("We failed to send a message to the logging channel")
-		PrintError(resp.Error)
-	}
-}
-
+// Requires admin rights. Not in use atm.
 func ReplaceTerm(term string, replacement string, post *model.Post) {
 	re := regexp.MustCompile(term)
 	post.Message = re.ReplaceAllString(post.Message, replacement)
@@ -471,7 +311,7 @@ func GetDebugChannel() {
 }
 
 func GetBotUser() {
-	if user, resp := client.GetUserByUsername(BOT_NAME, ""); resp.Error != nil {
+	if user, resp := client.GetUserByUsername(viper.GetString("bot_name"), ""); resp.Error != nil {
 		println("There was a problem logging into the Mattermost server.  Are you sure ran the setup steps from the README.md?")
 		PrintError(resp.Error)
 		os.Exit(1)
@@ -497,7 +337,7 @@ func CreateBotDebuggingChannel() {
 }
 
 func GetWordList() (words map[string]interface{}) {
-	content, err := ioutil.ReadFile(WORD_LIST_FILE)
+	content, err := os.ReadFile(WORD_LIST_FILE)
 	if err != nil {
 		log.Fatal("Error when opening file: ", err)
 	}
@@ -517,23 +357,21 @@ func GetConfig() {
 	viper.ReadInConfig()
 	// TODO: validate required config values
 	viper.SetDefault("bot_name", BOT_NAME)
-	viper.SetDefault("channel_name", CHANNEL_NAME)
 	viper.SetDefault("debug_channel_name", "debug-"+BOT_NAME)
 	viper.SetDefault("word_list_file", WORD_LIST_FILE)
-	println(viper.GetString("team_name"))
 }
 
-// func SetupGracefulShutdown() {
-// 	c := make(chan os.Signal, 1)
-// 	signal.Notify(c, os.Interrupt)
-// 	go func() {
-// 		for _ = range c {
-// 			if webSocketClient != nil {
-// 				webSocketClient.Close()
-// 			}
+func SetupGracefulShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for range c {
+			if webSocketClient != nil {
+				webSocketClient.Close()
+			}
 
-// 			SendMsgToDebuggingChannel("_"+SAMPLE_NAME+" has **stopped** running_", "")
-// 			os.Exit(0)
-// 		}
-// 	}()
-// }
+			SendMsgToDebuggingChannel("I **stopped** running.", "")
+			os.Exit(0)
+		}
+	}()
+}
