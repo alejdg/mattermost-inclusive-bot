@@ -1,0 +1,27 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inclusive-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inclusive-bot
+  template:
+    metadata:
+      labels:
+        app: inclusive-bot
+    spec:
+      containers:
+      - env:
+        - name: SITE_URL
+          value: http://172.21.0.3:8066
+        - name: BOT_NAME
+          value: inclusive-bot
+        - name: BOT_TOKEN
+          value: TOKEN
+        - name: TEAM_NAME
+          value: test-team
+        name: inclusive-bot
+        image: localhost:32000/inclusive-bot
