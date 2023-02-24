@@ -45,6 +45,10 @@ The token provided when creating the bot account in mattermost
 
 Your mattermost team name.
 
+### Config.json file
+
+Rename the `config.json.example` file to `config.json` and change the variables `site_url`, `bot_name`, `team_name` according to your needs.
+
 # Running the bot
 
 ## Docker
