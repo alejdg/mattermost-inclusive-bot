@@ -1,0 +1,142 @@
+{
+    "blacklist": [
+        "denylist"
+    ],
+    "black-list": [
+        "denylist"
+    ],
+    "black list": [
+        "denylist"
+    ],
+    "whitelist": [
+        "allowlist"
+    ],
+    "white-list": [
+        "allowlist"
+    ],
+    "white list": [
+        "allowlist"
+    ],
+    "blackhat": [
+        "malicious attacker",
+        "attacker"
+    ],
+    " black-hat": [
+        "malicious attacker",
+        "attacker"
+    ],
+    " black hat": [
+        "malicious attacker",
+        "attacker"
+    ],
+    "whitehat": [
+        "researcher",
+        "security specialist"
+    ],
+    " white-hat": [
+        "researcher",
+        "security specialist"
+    ],
+    " white hat": [
+        "researcher",
+        "security specialist"
+    ],
+    "master": [
+        "controller",
+        "control plane",
+        "primary",
+        "main"
+    ],
+    "slave": [
+        "replica",
+        "secondary"
+    ],
+    "chairman": [
+        "chairperson"
+    ],
+    "foreman": [
+        "foreperson"
+    ],
+    "grandfathered": [
+        "legacy status"
+    ],
+    "guys": [
+        "people",
+        "you all",
+        "folks",
+        "everyone"
+    ],
+    "mom test": [
+        "user test",
+        "user friendly"
+    ],
+    "girlfriend test": [
+        "user test",
+        "user friendly"
+    ],
+    "crazy": [
+        "baffling",
+        "unexplained",
+        "unpredictable",
+        "unexpected"
+    ],
+    "cripples": [
+        "slows down",
+        "hinders",
+        "obstructs"
+    ],
+    "crippling": [
+        "attenuating",
+        "incapacitating"
+    ],
+    "dummy": [
+        "placeholder",
+        "sample"
+    ],
+    "sanity": [
+        "confidence",
+        "coherence"
+    ],
+    " hang ": [
+        "stop responding",
+        "stalls",
+        "gets stuck",
+        "becomes unresponsive",
+        "freezes"
+    ],
+    " hanged ": [
+        "stop responding",
+        "stalls",
+        "gets stuck",
+        "becomes unresponsive",
+        "freezes"
+    ],
+    " hanging": [
+        "stop responding",
+        "stalls",
+        "gets stuck",
+        "becomes unresponsive",
+        "freezes"
+    ],
+    " hangs ": [
+        "stop responding",
+        "stalls",
+        "gets stuck",
+        "becomes unresponsive",
+        "freezes"
+    ],
+    "stonith": [
+        "fence failed"
+    ],
+    "stomith": [
+        "fence failed"
+    ],
+    "demilitarized": [
+        "perimeter network"
+    ],
+    "illegal characters": [
+        "invalid characters",
+        "unsupported characters",
+        "special characters"
+    ]
+}

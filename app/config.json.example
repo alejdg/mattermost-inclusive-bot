@@ -1,0 +1,6 @@
+{
+    "site_url": "http://localhost",
+    "bot_name": "inclusive-bot",
+    "bot_token": "BOTTOKEN",
+    "team_name": "my-team"
+}
