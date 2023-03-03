@@ -143,8 +143,6 @@ func WebSocketHandling() {
 	}()
 
 	SendMsgToDebuggingChannel("I'm online.", "")
-	// // You can block forever with
-	// select {}
 }
 
 func HandleWebSocketResponse(event *model.WebSocketEvent) {
