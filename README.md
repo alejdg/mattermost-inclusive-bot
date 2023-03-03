@@ -4,9 +4,9 @@ Bot to help people discontinue harmful terms in their communication.
 
 When invite to a channel, the bot will monitor for harmful terms ([word_list.json](/app/word_list.json)) and will DM a user with suggestions when a term is used.
 
-# Set up
+## Set up
 
-## Create the bot account
+### Create the bot account
 
 As a System Admin account:
 
@@ -21,15 +21,15 @@ As a System Admin account:
 
 The firt time the bot connects it will create a debug channel.
 
-## Configuration
+### Configuration
 
 The bot can be configured through a `config.json` file or setting environment variables.
 
-### Env Variables
+#### Env Variables
 
 The necessary variables are `SITE_URL`, `BOT_TOKEN`, `TEAM_NAME`
 
-#### SITE_URL
+##### SITE_URL
 
 Your mattermost address including schema and port(if a non-default port).
 E.g.:
@@ -37,21 +37,21 @@ E.g.:
 - <http://localhost:8066>
 - <https://mymattermost.com>
 
-#### BOT_TOKEN
+##### BOT_TOKEN
 
 The token provided when creating the bot account in mattermost
 
-#### TEAM_NAME
+##### TEAM_NAME
 
 Your mattermost team name.
 
-### Config.json file
+#### Config.json file
 
 Rename the `config.json.example` file to `config.json` and change the variables `site_url`, `bot_name`, `team_name` according to your needs.
 
-# Running the bot
+## Running the bot
 
-## Docker
+### Docker
 
 Build the image:
 
@@ -65,7 +65,7 @@ Run the container:
 docker run --name=inclusive-bot --network=dev_default --env SITE_URL=VALUE1 --env BOT_TOKEN=VALUE2 --env TEAM_NAME=VALUE3 inclusive-bot
 ```
 
-## Locally
+### Locally
 
 Set the environment variables:
 
