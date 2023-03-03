@@ -10,12 +10,12 @@ When invite to a channel, the bot will monitor for harmful terms ([word_list.jso
 
 As a System Admin account:
 
-1. Go to <https://<your-mattemost-url>/<your-mattermostteam>/integrations/bots>.
+1. Go to <https://\<your-mattemost-url\>/\<your-mattermost-team\>/integrations/bots>.
 1. Click `Add Bot Account`.
 1. Set the bot name as `inclusive-bot` or anything else.
 1. Enable the `post:all` option.
 1. Save, and keep the provided token.
-1. Go to <https://<your-mattemost-url>/<your-mattermostteam>/messages>
+1. Go to <https://\<your-mattemost-url\>/\<your-mattermostteam\>/messages>.
 1. Click `Invite members` and invite your bot.
 1. The bot will be invited to your default channels but you can invite it to others too.
 
@@ -23,7 +23,7 @@ The firt time the bot connects it will create a debug channel.
 
 ## Configuration
 
-The bot can be configured through the `config.json` file or setting environment variables.
+The bot can be configured through a `config.json` file or setting environment variables.
 
 ### Env Variables
 
@@ -62,7 +62,7 @@ docker build . -t inclusive-bot:dev
 Run the container:
 
 ```
-docker run --name=inclusive-bot --network=dev_default inclusive-bot --env SITE_URL=VALUE1 --env BOT_TOKEN=VALUE2 --env TEAM_NAME=VALUE3
+docker run --name=inclusive-bot --network=dev_default --env SITE_URL=VALUE1 --env BOT_TOKEN=VALUE2 --env TEAM_NAME=VALUE3 inclusive-bot
 ```
 
 ## Locally
