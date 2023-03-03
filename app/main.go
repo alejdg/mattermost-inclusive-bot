@@ -75,17 +75,27 @@ func setupBot() {
 
 func send(w http.ResponseWriter, req *http.Request) {
 	c := apps.CallRequest{}
-	json.NewDecoder(req.Body).Decode(&c)
+	err := json.NewDecoder(req.Body).Decode(&c)
+	if err != nil {
+		log.Fatal("Error decoding the request:", err)
+	}
 
 	message := "Hello, world!"
 	v, ok := c.Values["message"]
 	if ok && v != nil {
 		message += fmt.Sprintf(" ...and %s!", v)
 	}
-	appclient.AsBot(c.Context).DM(c.Context.ActingUserID, message)
+	_, err = appclient.AsBot(c.Context).DM(c.Context.ActingUserID, message)
+	if err != nil {
+		log.Fatal("Error sending DM:", err)
+	}
 
-	httputils.WriteJSON(w,
+	err = httputils.WriteJSON(w,
 		apps.NewDataResponse("Created a post in your DM channel."))
+	if err != nil {
+		log.Fatal("Error writing json:", err)
+	}
+
 }
 
 type ReplyData struct {
@@ -95,23 +105,23 @@ type ReplyData struct {
 	Word      string `json:"word"`
 }
 
-// Requires admin rights. Not in use atm.
-func replaceHandler(w http.ResponseWriter, req *http.Request) {
-	request := model.PostActionIntegrationRequestFromJson(req.Body)
-	fmt.Printf("PostActionIntegrationRequestFromJson: \n%s\n", request.ToJson())
-	fmt.Printf("request.Context: \n%s\n", request.Context)
-	// TODO validateToken()
-	var result ReplyData
-	json.Unmarshal([]byte(request.Context["body"].(string)), &result)
-	fmt.Printf("result: \n%s\n", result)
-	post, resp := client.GetPost(result.ReplyToId, "")
-	if resp.StatusCode == 404 {
-		println("Couldn't replace the term. Message not found")
-		return
-	}
-	fmt.Printf("post message: \n%s\n", post.Message)
-	ReplaceTerm(result.Term, result.Word, post)
-}
+// // Requires admin rights. Not in use atm.
+// func replaceHandler(w http.ResponseWriter, req *http.Request) {
+// 	request := model.PostActionIntegrationRequestFromJson(req.Body)
+// 	fmt.Printf("PostActionIntegrationRequestFromJson: \n%s\n", request.ToJson())
+// 	fmt.Printf("request.Context: \n%s\n", request.Context)
+// 	// TODO validateToken()
+// 	var result ReplyData
+// 	json.Unmarshal([]byte(request.Context["body"].(string)), &result)
+// 	fmt.Printf("result: \n%s\n", result)
+// 	post, resp := client.GetPost(result.ReplyToId, "")
+// 	if resp.StatusCode == 404 {
+// 		println("Couldn't replace the term. Message not found")
+// 		return
+// 	}
+// 	fmt.Printf("post message: \n%s\n", post.Message)
+// 	ReplaceTerm(result.Term, result.Word, post)
+// }
 
 func WebSocketHandling() {
 	// Lets start listening to some channels via the websocket!
@@ -345,7 +355,10 @@ func GetConfig() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
 	viper.AutomaticEnv()
-	viper.ReadInConfig()
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Fatal("Error loading configuration:", err)
+	}
 	// TODO: validate required config values
 	viper.SetDefault("bot_name", BOT_NAME)
 	viper.SetDefault("debug_channel_name", "debug-"+BOT_NAME)
