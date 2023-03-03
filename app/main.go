@@ -22,11 +22,8 @@ import (
 //go:embed icon.png
 var iconData []byte
 
-//go:embed manifest.json
-var manifestData []byte
-
-//go:embed send_form.json
-var formData []byte
+//go:embed word_list.json
+var wordListData []byte
 
 const (
 	BOT_NAME       = "inclusive-bot"
@@ -43,17 +40,9 @@ var wordList map[string]interface{}
 
 func main() {
 	SetupGracefulShutdown()
-	// Serve its own manifest as HTTP for convenience in dev. mode.
-	http.HandleFunc("/manifest.json", httputils.DoHandleJSONData(manifestData))
-
-	// The form for sending a Hello message.
-	http.HandleFunc("/send/form", httputils.DoHandleJSONData(formData))
 
 	// The main handler for sending a Hello message.
 	http.HandleFunc("/send/submit", send)
-
-	// Forces the send form to be displayed as a modal.
-	http.HandleFunc("/send-modal/submit", httputils.DoHandleJSONData(formData))
 
 	// Replaces a term
 	// http.HandleFunc("/replace/", replaceHandler)
@@ -127,6 +116,7 @@ func replaceHandler(w http.ResponseWriter, req *http.Request) {
 func WebSocketHandling() {
 	// Lets start listening to some channels via the websocket!
 	re := regexp.MustCompile(`^[a-z][a-z0-9+\-.]*:`)
+	wsa := re.ReplaceAllString(viper.GetString("site_url"), "ws://")
 	fmt.Printf("websocket address: \n%s\n", wsa)
 	webSocketClient, err := model.NewWebSocketClient4(wsa, viper.GetString("bot_token"))
 	if err != nil {
@@ -341,6 +331,11 @@ func GetWordList() (words map[string]interface{}) {
 	err = json.Unmarshal(content, &words)
 	if err != nil {
 		log.Fatal("Error during Unmarshal(): ", err)
+	}
+
+	err = json.Unmarshal(wordListData, &words)
+	if err != nil {
+		log.Fatal("Error during Unmarshal2(): ", err)
 	}
 	return
 }
