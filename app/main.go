@@ -25,9 +25,6 @@ var iconData []byte
 //go:embed manifest.json
 var manifestData []byte
 
-//go:embed bindings.json
-var bindingsData []byte
-
 //go:embed send_form.json
 var formData []byte
 
@@ -48,9 +45,6 @@ func main() {
 	SetupGracefulShutdown()
 	// Serve its own manifest as HTTP for convenience in dev. mode.
 	http.HandleFunc("/manifest.json", httputils.DoHandleJSONData(manifestData))
-
-	// Returns the Channel Header and Command bindings for the app.
-	http.HandleFunc("/bindings", httputils.DoHandleJSONData(bindingsData))
 
 	// The form for sending a Hello message.
 	http.HandleFunc("/send/form", httputils.DoHandleJSONData(formData))
